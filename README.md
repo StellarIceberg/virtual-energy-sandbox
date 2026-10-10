@@ -105,3 +105,9 @@ The original Canva reference is preserved in `docs/design-reference.png`.
 Independent educational portfolio project. No affiliation, endorsement or official certification from Amber Electric. It does not reproduce proprietary SmartShift algorithms, internal software or actual integrations.
 
 MIT — see [LICENSE](LICENSE).
+
+### Controller operating status
+
+The permanent violet-link label describes control signals, not electricity. A separate status is derived from actual battery flows: local home supply or solar charging is **Self-consumption**, battery grid exports are **Dispatching**, reserve protection without battery activity is **Preserving**, and other inactivity is **Idle**. **Control unavailable** requires a simulated command fault; local operation can still continue. Export planning and fault diagnostics are displayed separately. No physical dispatch calculations were changed.
+
+These educational labels reference Amber’s public [automation explainers](https://help.amber.com.au/hc/en-us/articles/37122595895309-Understanding-your-SmartShift-Automation-Explainers) and [SmartShift overview](https://help.amber.com.au/hc/en-us/articles/10014159451405-How-does-SmartShift-work). They do not reproduce SmartShift algorithms or imply that every battery discharge is a remote command.
