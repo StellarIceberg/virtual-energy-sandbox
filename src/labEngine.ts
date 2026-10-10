@@ -14,7 +14,7 @@ function startSoc(id: LabId, cause: BatteryCause) {
 export function initialLab(id: LabId = 'communication', active = true, cause: BatteryCause = 'control'): LabState {
   return {id, active, cause, communicationDisabled:false, batteryDisconnected:false, telemetryMissing:false, evLoad:3, exportLimit:0, limitIntent:'approved', clock:{...initialState(labScenarios[id].solar ? 'negative' : 'evening'), soc:startSoc(id,cause)}};
 }
-export function calculateLab(state: LabState): Flow & { communicationLost:boolean; status:string; secondarySolar:number; mainSolar:number; effectiveReserve:number } {
+export function calculateLab(state: LabState): Flow & { communicationLost:boolean; controlUnavailable:boolean; batteryUnavailable:boolean; status:string; secondarySolar:number; mainSolar:number; effectiveReserve:number } {
   const {id,active,cause,clock} = state;
   const communicationLost = state.communicationDisabled || active && id === 'communication';
   const rejected = active && (id === 'curtailment' || id === 'firmware');
@@ -45,7 +45,7 @@ export function calculateLab(state: LabState): Flow & { communicationLost:boolea
     : id === 'exportLimit' ? `A ${state.exportLimit} kW hard site limit caps net exports. Home supply can continue. This limit is ${state.limitIntent === 'approved' ? 'an intentional approved restriction, not a fault' : 'assumed incorrectly configured for this example; verify the approved setting with an installer'}.`
     : 'EV demand is part of household load. Load-following solar output changes to meet demand while avoiding negative-price exports; charging does not universally disable curtailment.';
   const secondarySolar = id === 'secondary' ? active ? Math.min(defaults.solarCapacity/2,f.solar) : f.solar/2 : 0;
-  return {...f, action:status, explanation, remainingForecast:0, exportBudget:Math.max(0, clock.soc/100*defaults.capacity-Math.max(reserve,defaults.exportFloor)/100*defaults.capacity), communicationLost,status,secondarySolar,mainSolar:f.solar-secondarySolar,effectiveReserve:reserve};
+  return {...f, action:status, explanation, remainingForecast:0, exportBudget:Math.max(0, clock.soc/100*defaults.capacity-Math.max(reserve,defaults.exportFloor)/100*defaults.capacity), communicationLost,controlUnavailable:remoteBatteryUnavailable || rejected,batteryUnavailable:physicalBatteryUnavailable,status,secondarySolar,mainSolar:f.solar-secondarySolar,effectiveReserve:reserve};
 }
 export type LabEvent = {type:'select'; id:LabId} | {type:'mode'; active:boolean} | {type:'resetFault'} | {type:'connection'; connection:'communication'|'battery'} | {type:'cause'; cause:BatteryCause} | {type:'evLoad'; value:number} | {type:'exportLimit'; value:number} | {type:'limitIntent'; value:LabState['limitIntent']} | {type:'telemetry'} | {type:'playback'; event:Event};
 export function labReducer(state: LabState, event: LabEvent): LabState {

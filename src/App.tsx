@@ -2,6 +2,7 @@ import { useEffect, useReducer } from 'react';
 import { calculate, defaults, scenarios, durationFor, tariffAt, clockLabel, STEP_HOURS, type ScenarioId } from './engine';
 import { eveningTariffs } from './config';
 import Diagram from './Diagram';
+import { describeController } from './controllerStatus';
 import InteractiveLab from './InteractiveLab';
 import PlaybackControls from './PlaybackControls';
 import {viewReducer,initialView} from './navigation';
@@ -14,6 +15,7 @@ export default function App() {
     return () => clearInterval(timer);
   }, [state.playing]);
   const flow = calculate(state.scenario,state.soc,STEP_HOURS,defaults,state.minute,state.totals.household);
+  const controller = describeController(flow, {soc:state.soc, reserve:defaults.reserve});
   const evening=state.scenario==='evening', total=state.totals;
   const net=total.imported-total.exported;
   const readings = [
@@ -33,11 +35,11 @@ export default function App() {
     {view.tab==='lab' ? <InteractiveLab/> : <div className="dashboard mt-6">
       <section className="panel diagram-panel" aria-label="Energy flow diagram">
         <div className="panel-heading"><div><h2>Your virtual home</h2><p>Live power flows · kW · illustrative large residential system</p></div><span className="status">{state.playing ? 'Running' : state.minute===durationFor(state.scenario) ? 'Complete' : 'Paused'}</span></div>
-        <div className="simulation-figure"><PlaybackControls minute={state.minute} duration={durationFor(state.scenario)} playing={state.playing} speed={state.speed} dispatch={event=>dispatch({type:'simulation',event})}/><Diagram flow={flow} soc={state.soc} playing={state.playing}/></div>
+        <div className="simulation-figure"><PlaybackControls minute={state.minute} duration={durationFor(state.scenario)} playing={state.playing} speed={state.speed} dispatch={event=>dispatch({type:'simulation',event})}/><Diagram controllerStatus={controller.status} flow={flow} soc={state.soc} playing={state.playing}/></div>
         <div className="legend"><span><i className="green-dot"/> Electricity</span><span><i className="blue-dot"/> Grid exchange</span><span><i className="purple-dot"/> Controller commands</span></div>
         {evening && <section className="tariff-strip" aria-label="Predetermined evening tariff schedule"><h3>Illustrative evening feed-in tariff · c/kWh</h3><div>{eveningTariffs.map((t)=><span key={t.minute} className={tariffAt(state.minute).minute===t.minute ? 'current' : ''}><small>{clockLabel(t.minute)}</small><strong>{t.fit}</strong></span>)}</div><p>Separate import schedule: {eveningTariffs.map(t=>t.importPrice).join(' / ')} c/kWh. The {defaults.forecastDemand} kWh forecast is spread over 17:00–24:00.</p></section>}
       </section>
-      <aside className="flex flex-col gap-4"><section className="panel controller-panel"><div className="eyebrow">CONTROLLER DECISION</div><h2 aria-live="polite">{flow.action}</h2><p>{flow.explanation}</p>{evening && <p className="restriction-note">Export budget remaining: {flow.exportBudget.toFixed(2)} kWh · export floor {defaults.exportFloor}%</p>}</section>
+      <aside className="flex flex-col gap-4"><section className="panel controller-panel"><div className="eyebrow">CONTROLLER STATUS</div><h2 aria-live="polite">{controller.status}</h2><p>{controller.explanation}</p><p className="restriction-note"><strong>Energy plan: {flow.action}.</strong> {flow.explanation}</p>{evening && <p className="restriction-note">Export budget remaining: {flow.exportBudget.toFixed(2)} kWh · export floor {defaults.exportFloor}%</p>}</section>
         <section className="readings" aria-label="Live readings">{readings.map(([label,value,note])=><div className="reading" key={label}><h3>{label}</h3><strong>{value}</strong><p>{note}</p></div>)}</section>
       </aside>
     </div>}

@@ -24,7 +24,7 @@ describe('Phase 2 energy and deterministic optimisation',()=>{
   it('uses 40 kWh and 10 kW configuration and labels energy capacity correctly',()=>{
     expect(defaults.capacity).toBe(40);expect(defaults.solarCapacity).toBe(10);
     expect(defaults.chargeLimit).toBe(10);expect(defaults.dischargeLimit).toBe(10);
-    const html=renderToStaticMarkup(createElement(Diagram,{flow:calculate('positive',80),soc:80,playing:false}));
+    const html=renderToStaticMarkup(createElement(Diagram,{controllerStatus:'Self-consumption',flow:calculate('positive',80),soc:80,playing:false}));
     expect(html).toContain('40 kWh');expect(html).not.toContain('40 kW ·');
   });
   it('integrates kW × hours into consumption, import, export and battery energy',()=>{
@@ -128,8 +128,8 @@ describe('source-backed fault simulations',()=>{
   it('curtails only the enrolled solar branch and conditionally renders a second inverter',()=>{
     const state=initialLab('secondary'), f=calculateLab(state);expect(f.secondarySolar).toBe(5);expect(f.mainSolar).toBe(0);expect(f.exportPower).toBe(3.5);expect(f.curtailment).toBe(5);
     const normal=calculateLab(labReducer(state,{type:'mode',active:false}));expect(normal.exportPower).toBe(0);expect(normal.solar).toBe(1.5);
-    const html=renderToStaticMarkup(createElement(Diagram,{flow:f,soc:100,playing:false,showSecondary:true,secondarySolar:f.secondarySolar}));expect(html).toContain('SECOND SOLAR INVERTER');
-    expect(renderToStaticMarkup(createElement(Diagram,{flow:f,soc:100,playing:false}))).not.toContain('SECOND SOLAR INVERTER');
+    const html=renderToStaticMarkup(createElement(Diagram,{controllerStatus:'Idle',flow:f,soc:100,playing:false,showSecondary:true,secondarySolar:f.secondarySolar}));expect(html).toContain('SECOND SOLAR INVERTER');
+    expect(renderToStaticMarkup(createElement(Diagram,{controllerStatus:'Idle',flow:f,soc:100,playing:false}))).not.toContain('SECOND SOLAR INVERTER');
   });
   it('treats reserve conflicts and EV load-following as expected behaviour',()=>{
     const reserve=calculateLab(initialLab('reserve'));expect(reserve.effectiveReserve).toBe(60);expect(reserve.discharge).toBe(0);expect(reserve.status).toContain('Expected');

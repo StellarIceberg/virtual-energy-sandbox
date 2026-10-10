@@ -1,5 +1,6 @@
 import type { Flow } from './engine';
 import { defaults } from './engine';
+import { CONTROL_CONNECTION_LABEL, type ControllerStatus } from './controllerStatus';
 const kw = (value: number) => `${value.toFixed(2)} kW`;
 function Wire({ path, power, color = 'green', playing }: { path: string; power: number; color?: string; playing: boolean }) {
   return <g><path d={path} className="wire-base"/><path d={path} className={`wire ${power > 0.000001 ? color : 'inactive'} ${playing && power > 0.000001 ? 'moving' : ''}`} markerEnd={power > 0.000001 ? `url(#arrow-${color})` : undefined}/></g>;
@@ -7,14 +8,14 @@ function Wire({ path, power, color = 'green', playing }: { path: string; power: 
 function Label({ x, y, name, value }: { x: number; y: number; name: string; value: string }) {
   return <g textAnchor="middle"><text x={x} y={y} className="node-name">{name}</text><text x={x} y={y+23} className="node-value">{value}</text></g>;
 }
-type DiagramProps = { flow: Flow; soc: number; playing: boolean; communicationLost?: boolean; batteryDisconnected?: boolean; secondarySolar?: number; showSecondary?: boolean; commandRejected?: boolean; onConnection?: (connection:'communication'|'battery') => void };
-export default function Diagram({ flow: f, soc, playing, communicationLost = false, batteryDisconnected = false, secondarySolar = 0, showSecondary = false, commandRejected = false, onConnection }: DiagramProps) {
+type DiagramProps = { controllerStatus: ControllerStatus; flow: Flow; soc: number; playing: boolean; communicationLost?: boolean; batteryDisconnected?: boolean; secondarySolar?: number; showSecondary?: boolean; commandRejected?: boolean; onConnection?: (connection:'communication'|'battery') => void };
+export default function Diagram({ controllerStatus, flow: f, soc, playing, communicationLost = false, batteryDisconnected = false, secondarySolar = 0, showSecondary = false, commandRejected = false, onConnection }: DiagramProps) {
   const batteryCharging = f.charge > 0;
   const mainSolar = f.solar - secondarySolar;
   const mainBusPower = mainSolar + f.discharge - f.charge;
   const gridImporting = f.importPower > 0;
   return <svg viewBox="0 0 1080 630" role={onConnection ? "group" : "img"} aria-labelledby="diagram-title diagram-desc">
-    <title id="diagram-title">Residential energy flow</title><desc id="diagram-desc">Solar {kw(f.solar)}; battery charging {kw(f.charge)}, discharging {kw(f.discharge)}; house {kw(f.load)}; grid import {kw(f.importPower)}, export {kw(f.exportPower)}. Dashed violet connection carries controller commands.</desc>
+    <title id="diagram-title">Residential energy flow</title><desc id="diagram-desc">Solar {kw(f.solar)}; battery charging {kw(f.charge)}, discharging {kw(f.discharge)}; house {kw(f.load)}; grid import {kw(f.importPower)}, export {kw(f.exportPower)}. Controller status: {controllerStatus}. {CONTROL_CONNECTION_LABEL}.</desc>
     <defs>{['green','gold','blue'].map(c => <marker key={c} id={`arrow-${c}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" className={`arrow-${c}`}/></marker>)}<pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#dce6e0"/></pattern></defs>
     <rect width="1080" height="630" rx="18" fill="url(#dots)"/>
     <Wire path="M420 180V269" power={mainSolar} color="gold" playing={playing}/>
@@ -38,7 +39,8 @@ export default function Diagram({ flow: f, soc, playing, communicationLost = fal
     <g transform="translate(880 263)"><path d="M0 53L67-6L134 53" fill="#f2e4c6" stroke="#bc7558" strokeWidth="9" strokeLinejoin="round"/><path d="M13 48V127H120V48" fill="#f2e4c6"/><rect x="28" y="72" width="30" height="55" rx="4" fill="#bc7558"/><rect x="74" y="68" width="29" height="29" rx="4" fill="#90bcc2"/><circle cx="67" cy="31" r="10" fill="#90bcc2"/></g>
     <Label x={947} y={424} name="HOME" value={kw(f.load)}/>
     <g transform="translate(372 485)"><rect width="96" height="54" rx="12" fill="#8b70ca"/><circle cx="18" cy="18" r="4" fill="#e9e2fa"/><circle cx="18" cy="36" r="4" fill="#e9e2fa"/><path d="M34 18H77M34 36H77" stroke="#e9e2fa" strokeWidth="4"/></g>
-    <Label x={420} y={570} name="AUTOMATION CONTROLLER" value={communicationLost ? "Communication unavailable" : commandRejected ? "Command not executed" : "Commands · no electricity"}/>
+    <Label x={420} y={562} name="AUTOMATION CONTROLLER" value={controllerStatus}/>
+    <text x="420" y="610" textAnchor="middle" className="control-connection-label">{CONTROL_CONNECTION_LABEL}</text>
     <g transform="translate(670 483)" stroke="#537a92" strokeWidth="6" fill="none"><path d="M45 0L10 83M45 0L80 83M31 33H59M21 57H69M10 83H80M14 10H76M3 25H87M14 10V0M76 10V0"/></g>
     <Label x={715} y={598} name="GRID" value={gridImporting ? `${kw(f.importPower)} importing` : `${kw(f.exportPower)} exporting`}/>
   </svg>;
