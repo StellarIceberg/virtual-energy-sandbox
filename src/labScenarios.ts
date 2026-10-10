@@ -42,7 +42,7 @@ export const labScenarios = {
   secondary: {
     name:'Secondary solar inverter not controllable', symptom:'One solar inverter curtails while another continues producing.',
     support:'Public coupling and curtailment guides explain that an additional unsupported or unenrolled inverter may remain uncontrolled.',
-    assumption:'The 10 kW array is split into two 5 kW branches. The secondary branch has no remote curtailment; storage starts full.',
+    assumption:'This alternate lab topology splits the 10 kW array between the hybrid inverter and an additional 5 kW solar-only inverter; it adds no battery inverter. The secondary branch has no remote curtailment; storage starts full.',
     checks:['Identify all solar inverters and their enrolment.','Check each inverter’s public compatibility requirements.'],
     sources:['coupling','curtailment'] as SourceId[], category:'Partial solar control', solar:true,
   },

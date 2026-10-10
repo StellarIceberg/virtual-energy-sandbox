@@ -43,6 +43,6 @@ export default function App() {
         <section className="readings" aria-label="Live readings">{readings.map(([label,value,note])=><div className="reading" key={label}><h3>{label}</h3><strong>{value}</strong><p>{note}</p></div>)}</section>
       </aside>
     </div>}
-    <footer><p>Power balance: generation + discharge + import = consumption + charge + export. Energy totals integrate kW over simulated hours.</p><p>Idealised lossless AC-coupled system; separate solar and battery inverter limits. Illustrative prices and forecast, no live data or device connections. This independent project does not reproduce Amber Electric’s proprietary SmartShift algorithms.</p><a href="https://github.com/StellarIceberg/virtual-energy-sandbox" target="_blank" rel="noreferrer">View source on GitHub ↗</a></footer>
+    <footer><p>Power balance: generation + discharge + import = consumption + charge + export. Energy totals integrate kW over simulated hours.</p><p>Idealised lossless system with one 10 kW hybrid inverter and shared AC output limits. Illustrative prices and forecast, no live data or device connections. This independent project does not reproduce Amber Electric’s proprietary SmartShift algorithms.</p><a href="https://github.com/StellarIceberg/virtual-energy-sandbox" target="_blank" rel="noreferrer">View source on GitHub ↗</a></footer>
   </main>;
 }
