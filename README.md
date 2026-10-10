@@ -25,6 +25,14 @@ Choose positive feed-in tariff, negative feed-in tariff, or no solar / evening p
 
 Solar supplies the house first, then charges the battery. Surplus is exported at positive FiT and curtailed at negative FiT. With no solar, the battery supplies the house until reserve or power constraints require grid imports. Positive FiT starts with 4.5 kW battery charging; export begins as the battery fills after 36 simulated minutes. Negative FiT similarly begins curtailing after the battery fills. Evening reserve is reached after 243 simulated minutes.
 
+## Interactive Lab placeholder
+
+The fourth navigation option opens an isolated `src/InteractiveLab.tsx` placeholder. Entering the lab pauses the simulator; returning to one of the original scenarios restores its starting conditions using the existing reducer. No fault simulations or additional energy calculations are implemented.
+
+Future lab scenarios must use publicly documented device behaviour and public Amber Electric support resources, with sources verified during that development phase. Internal company information must not be used. The separate lab component can later host its own scenario panel and connection controls without modifying the normal simulation engine.
+
+Playback controls are contained in `src/PlaybackControls.tsx` and placed inside the simulation figure with a compact timeline. On narrow screens they sit above the SVG within the figure to avoid obscuring energy flows.
+
 ## Model and limitations
 
 - Constant illustrative prices and loads; no live market or weather data.
