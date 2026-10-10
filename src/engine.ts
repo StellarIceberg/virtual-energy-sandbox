@@ -20,6 +20,7 @@ export function clockLabel(minute: number) {
 export type DispatchInput = {
   solarAvailable: number; load: number; fit: number; importPrice: number;
   requestedBatteryExport?: number; remainingForecast?: number;
+  externalSolarAvailable?: number; // Only the alternate secondary-solar lab topology.
   uncontrolledSolar?: number; curtailmentAllowed?: boolean;
   chargeAllowed?: boolean; dischargeAllowed?: boolean; exportLimit?: number;
 };
@@ -28,23 +29,27 @@ function validate(soc: number, hours: number, c: Config) {
   if (!Object.values(c).every(Number.isFinite) || c.capacity <= 0 || c.eveningDuration <= 0 || c.standardDuration <= 0 || c.stepHours <= 0 || c.tickMilliseconds <= 0 || Object.values(c).some(v => v < 0) || c.reserve > 100 || c.exportFloor > 100 || c.initialSoc > 100) throw new Error('Invalid system configuration');
 }
 const clean = (n: number) => Math.abs(n) < 1e-10 ? 0 : n;
-/** Shared physical dispatch: ideal, separate solar/battery inverters on an AC bus. */
+/** Shared physical dispatch: ideal DC-coupled PV and battery, sharing one hybrid AC bridge. */
 export function dispatchPower(input: DispatchInput, soc: number, hours = STEP_HOURS, c: Config = defaults) {
   validate(soc, hours, c);
   const { solarAvailable, load, fit, importPrice } = input;
-  if (![solarAvailable, load, fit, importPrice, input.requestedBatteryExport ?? 0, input.remainingForecast ?? 0, input.uncontrolledSolar ?? 0, input.exportLimit ?? c.siteExportLimit].every(Number.isFinite) || solarAvailable < 0 || load < 0 || (input.exportLimit ?? 0) < 0 || (input.uncontrolledSolar ?? 0) < 0 || (input.remainingForecast ?? 0) < 0 || (input.requestedBatteryExport ?? 0) < 0) throw new Error('Invalid dispatch input');
-  const available = Math.min(solarAvailable, c.solarInverterLimit);
+  if (![solarAvailable, load, fit, importPrice, input.requestedBatteryExport ?? 0, input.remainingForecast ?? 0, input.uncontrolledSolar ?? 0, input.externalSolarAvailable ?? 0, input.exportLimit ?? c.siteExportLimit].every(Number.isFinite) || solarAvailable < 0 || load < 0 || (input.exportLimit ?? 0) < 0 || (input.uncontrolledSolar ?? 0) < 0 || (input.externalSolarAvailable ?? 0) < 0 || (input.remainingForecast ?? 0) < 0 || (input.requestedBatteryExport ?? 0) < 0) throw new Error('Invalid dispatch input');
+  const externalAvailable = Math.min(solarAvailable, input.externalSolarAvailable ?? 0);
+  const available = externalAvailable + Math.min(solarAvailable - externalAvailable, c.solarInputLimit);
   const uncontrolled = Math.min(available, input.uncontrolledSolar ?? 0);
   const energy = soc / 100 * c.capacity;
   const surplus = Math.max(0, available - load);
-  const charge = input.chargeAllowed === false ? 0 : Math.min(surplus, c.chargeLimit, c.batteryInverterLimit, (c.capacity - energy) / hours);
+  const charge = input.chargeAllowed === false ? 0 : Math.min(surplus, c.chargeLimit, c.batteryPortLimit, available - externalAvailable + c.inverterLimit, (c.capacity - energy) / hours);
   let solar = available;
   if (fit < 0 && input.curtailmentAllowed !== false) solar = Math.min(available, Math.max(uncontrolled, load + charge));
   const siteLimit = input.exportLimit ?? c.siteExportLimit;
   // Local hard export cap remains effective even if cloud curtailment commands fail.
-  solar = Math.min(solar, load + charge + siteLimit);
-  const deficit = Math.max(0, load - solar);
-  const dischargeLimit = input.dischargeAllowed === false ? 0 : Math.min(c.dischargeLimit, c.batteryInverterLimit);
+  // DC solar charging does not consume the shared AC output allowance.
+  solar = Math.min(solar, charge + externalAvailable + c.inverterLimit, load + charge + siteLimit);
+  const externalSolar = Math.min(externalAvailable, solar);
+  const solarAcOutput = solar - externalSolar - charge;
+  const deficit = Math.max(0, load + charge - solar);
+  const dischargeLimit = charge > 0 || input.dischargeAllowed === false ? 0 : Math.min(c.dischargeLimit, c.batteryPortLimit, Math.max(0, c.inverterLimit - solarAcOutput));
   const homeDischarge = Math.min(deficit, dischargeLimit, Math.max(0, energy - c.reserve / 100 * c.capacity) / hours);
   const solarExport = Math.max(0, solar - load - charge);
   const protectedEnergy = Math.max(c.reserve, c.exportFloor) / 100 * c.capacity + (input.remainingForecast ?? 0);
@@ -58,14 +63,14 @@ export function dispatchPower(input: DispatchInput, soc: number, hours = STEP_HO
   const importPower = clean(deficit - homeDischarge);
   const exportPower = clean(solarExport + gridDischarge);
   const nextSoc = Math.min(100, Math.max(0, soc + (charge - discharge) * hours / c.capacity * 100));
-  return { solar: clean(solar), solarAvailable, load, charge: clean(charge), discharge: clean(discharge), homeDischarge: clean(homeDischarge), gridDischarge: clean(gridDischarge), exportPower, importPower, curtailment: clean(solarAvailable - solar), nextSoc, fit, importPrice, exportLimit: siteLimit };
+  return { inverterPower: clean(solarAcOutput + discharge), externalSolar: clean(externalSolar), solar: clean(solar), solarAvailable, load, charge: clean(charge), discharge: clean(discharge), homeDischarge: clean(homeDischarge), gridDischarge: clean(gridDischarge), exportPower, importPower, curtailment: clean(solarAvailable - solar), nextSoc, fit, importPrice, exportLimit: siteLimit };
 }
 export type PowerFlow = ReturnType<typeof dispatchPower>;
 /** Greedy allocation across known future price blocks; not a SmartShift algorithm. */
 export function plannedExport(minute: number, soc: number, remainingForecast: number, c: Config = defaults) {
   const load = c.forecastDemand / (c.eveningDuration / 60);
   let budget = Math.max(0, soc / 100 * c.capacity - Math.max(c.reserve, c.exportFloor) / 100 * c.capacity - remainingForecast);
-  const exportRate = Math.max(0, Math.min(c.dischargeLimit, c.batteryInverterLimit) - load);
+  const exportRate = Math.max(0, Math.min(c.dischargeLimit, c.batteryPortLimit, c.inverterLimit) - load);
   const candidates = eveningTariffs.map((t, i) => ({ ...t, end: eveningTariffs[i+1]?.minute ?? c.eveningDuration }))
     .filter(t => t.end > minute && t.fit > c.exportThreshold)
     .sort((a,b) => b.fit - a.fit || a.minute - b.minute);

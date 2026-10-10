@@ -23,13 +23,19 @@ npm run preview
 
 ## Illustrative system
 
-`src/config.ts` holds the central configuration: 10 kW solar array, 40 kWh battery, 10 kW charging/discharging limits, 80% starting SoC, 20% manufacturer reserve, 25% automated export floor, separate 10 kW solar and battery inverters, and a 10 kW site export cap. This is a large illustrative residential system, not a claim about the average Amber customer.
+`src/config.ts` holds the central configuration: 10 kW solar array, 40 kWh battery, 10 kW charging/discharging limits, 80% starting SoC, 20% manufacturer reserve, 25% automated export floor, one 10 kW hybrid inverter with shared AC conversion, and a 10 kW site export cap. This is a large illustrative residential system, not a claim about the average Amber customer.
 
 The model is idealised and lossless. Battery energy (kWh) and power (kW) are labelled separately. Physical dispatch obeys:
 
 - solar + battery discharge + grid import = home load + battery charge + grid export;
 - available solar = generated solar + curtailed solar;
 - battery energy change = (charging power − discharging power) × simulated hours.
+
+The base system has DC-coupled solar and storage. The shared AC bridge obeys `solar + discharge − charge ≤ 10 kW`, so solar and battery discharge cannot each produce 10 kW independently. Solar charging can run alongside AC home supply/export: it is a DC flow and is not added to AC output. PV input and battery-port limits are separate interface ratings, not separate inverters. Grid supply can bypass the inverter to cover household demand above its rating. The model does not implement grid charging.
+
+Only the existing secondary-solar troubleshooting case uses an explicitly labelled alternate topology: a 5 kW solar-only inverter alongside the hybrid inverter, with no separate battery inverter. That branch's AC generation is excluded from the hybrid output calculation; any AC-to-battery flow respects the hybrid conversion limit.
+
+This idealised interpretation is consistent with public [Fronius hybrid-inverter documentation](https://www.fronius.com/en-au/australia/solar-energy/installers-partners/technical-data/all-products/inverters/fronius-symo-gen24-plus/fronius-symo-gen24-10-0-aus-plus-sc), which distinguishes AC ratings, PV input and battery ports and describes parallel DC/AC flows. It is not a manufacturer-specific device model.
 
 No simultaneous charging/discharging or importing/exporting is allowed. Home consumption can use storage down to manufacturer reserve; automated battery exports also respect the separate export floor and forecast budget. The local hard export cap remains effective when cloud curtailment commands fail.
 
@@ -108,6 +114,6 @@ MIT — see [LICENSE](LICENSE).
 
 ### Controller operating status
 
-The permanent violet-link label describes control signals, not electricity. A separate status is derived from actual battery flows: local home supply or solar charging is **Self-consumption**, battery grid exports are **Dispatching**, reserve protection without battery activity is **Preserving**, and other inactivity is **Idle**. **Control unavailable** requires a simulated command fault; local operation can still continue. Export planning and fault diagnostics are displayed separately. No physical dispatch calculations were changed.
+The permanent violet-link label describes control signals, not electricity. A separate status is derived from actual battery flows: local home supply or solar charging is **Self-consumption**, battery grid exports are **Dispatching**, reserve protection without battery activity is **Preserving**, and other inactivity is **Idle**. **Control unavailable** requires a simulated command fault; local operation can still continue. Export planning and fault diagnostics are displayed separately. Operating-status classification does not change physical dispatch.
 
 These educational labels reference Amber’s public [automation explainers](https://help.amber.com.au/hc/en-us/articles/37122595895309-Understanding-your-SmartShift-Automation-Explainers) and [SmartShift overview](https://help.amber.com.au/hc/en-us/articles/10014159451405-How-does-SmartShift-work). They do not reproduce SmartShift algorithms or imply that every battery discharge is a remote command.

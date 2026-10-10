@@ -25,6 +25,7 @@ export function calculateLab(state: LabState): Flow & { communicationLost:boolea
   const physicalBatteryUnavailable = state.batteryDisconnected || active && id === 'battery' && cause === 'device';
   const f = dispatchPower({solarAvailable:isSolar ? defaults.solarCapacity : 0, load,
     fit:isSolar ? -8 : 35, importPrice:isSolar ? 20 : 55,
+    externalSolarAvailable:id === 'secondary' ? defaults.solarCapacity / 2 : 0,
     uncontrolledSolar:active && id === 'secondary' ? defaults.solarCapacity / 2 : 0,
     curtailmentAllowed:!communicationLost && !rejected,
     chargeAllowed:!physicalBatteryUnavailable, dischargeAllowed:!physicalBatteryUnavailable,
@@ -44,7 +45,7 @@ export function calculateLab(state: LabState): Flow & { communicationLost:boolea
     : id === 'battery' ? cause === 'control' ? 'The remote export command is unavailable. Local battery self-consumption continues in the assumed fallback mode.' : 'An illustrative device lock prevents battery discharge. Grid imports supply the home; stored energy alone does not prove remote control is available.'
     : id === 'exportLimit' ? `A ${state.exportLimit} kW hard site limit caps net exports. Home supply can continue. This limit is ${state.limitIntent === 'approved' ? 'an intentional approved restriction, not a fault' : 'assumed incorrectly configured for this example; verify the approved setting with an installer'}.`
     : 'EV demand is part of household load. Load-following solar output changes to meet demand while avoiding negative-price exports; charging does not universally disable curtailment.';
-  const secondarySolar = id === 'secondary' ? active ? Math.min(defaults.solarCapacity/2,f.solar) : f.solar/2 : 0;
+  const secondarySolar = f.externalSolar;
   return {...f, action:status, explanation, remainingForecast:0, exportBudget:Math.max(0, clock.soc/100*defaults.capacity-Math.max(reserve,defaults.exportFloor)/100*defaults.capacity), communicationLost,controlUnavailable:remoteBatteryUnavailable || rejected,batteryUnavailable:physicalBatteryUnavailable,status,secondarySolar,mainSolar:f.solar-secondarySolar,effectiveReserve:reserve};
 }
 export type LabEvent = {type:'select'; id:LabId} | {type:'mode'; active:boolean} | {type:'resetFault'} | {type:'connection'; connection:'communication'|'battery'} | {type:'cause'; cause:BatteryCause} | {type:'evLoad'; value:number} | {type:'exportLimit'; value:number} | {type:'limitIntent'; value:LabState['limitIntent']} | {type:'telemetry'} | {type:'playback'; event:Event};

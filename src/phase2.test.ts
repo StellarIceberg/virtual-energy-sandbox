@@ -67,7 +67,7 @@ describe('Phase 2 energy and deterministic optimisation',()=>{
     const low=runEvening(100,30);expect(low.totals.exported).toBe(0);expect(low.totals.imported).toBeCloseTo(6,8);
   });
   it('obeys inverter and site constraints with shared battery home/export power',()=>{
-    const f=dispatchPower({solarAvailable:0,load:2,fit:35,importPrice:55,requestedBatteryExport:10,exportLimit:3},80,STEP_HOURS,{...defaults,batteryInverterLimit:4});expect(f.discharge).toBe(4);expect(f.gridDischarge).toBe(2);
+    const f=dispatchPower({solarAvailable:0,load:2,fit:35,importPrice:55,requestedBatteryExport:10,exportLimit:3},80,STEP_HOURS,{...defaults,inverterLimit:4});expect(f.discharge).toBe(4);expect(f.gridDischarge).toBe(2);
     const solar=dispatchPower({solarAvailable:10,load:1,fit:25,importPrice:30,exportLimit:0},100);expect(solar.solar).toBe(1);expect(solar.exportPower).toBe(0);
   });
 });

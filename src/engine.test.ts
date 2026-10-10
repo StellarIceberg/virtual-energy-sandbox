@@ -29,9 +29,9 @@ describe('energy dispatch', () => {
     expect(soc).toBeCloseTo(20,10);
     const f=calculate('evening',soc); expect(f.discharge).toBeCloseTo(0,10); expect(f.importPower).toBeCloseTo(scenarios.evening.load,10);
   });
-  it('limits battery power and solar inverter output', () => {
+  it('limits battery power and hybrid inverter output', () => {
     expect(calculate('positive',80,1/60,{...defaults,chargeLimit:1}).charge).toBe(1);
-    const f=calculate('negative',80,1/60,{...defaults,batteryInverterLimit:1,solarInverterLimit:3});
+    const f=calculate('negative',80,1/60,{...defaults,batteryPortLimit:1,solarInputLimit:3,inverterLimit:3});
     expect(f.charge).toBe(1); expect(f.solar).toBe(2.5); expect(f.curtailment).toBe(7.5);
     const evening=calculate('evening',80,1/60,{...defaults,dischargeLimit:.5});
     expect(evening.discharge).toBe(.5); expect(evening.importPower).toBeCloseTo(scenarios.evening.load-.5,10);
